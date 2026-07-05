@@ -1,0 +1,35 @@
+name: Refresh skills.sh
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate skill files
+        run: |
+          test -s SKILL.md
+          grep -q '^name:' SKILL.md
+          grep -q '^description:' SKILL.md
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install from GitHub through skills CLI
+        run: npx --yes skills add baijian/garmin-analysis-skill
+
+      - name: Check skills.sh repo page
+        continue-on-error: true
+        run: curl -fsSL --retry 3 https://www.skills.sh/baijian/garmin-analysis-skill >/dev/null
