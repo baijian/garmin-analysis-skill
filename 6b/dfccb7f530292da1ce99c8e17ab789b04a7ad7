@@ -1,0 +1,23 @@
+SKILL.md
+  s_3a2c34b696654c::t_548be54ddf3687 8,80,83-89
+references/cli-workflows.md
+  s_3a2c34b696654c::t_07e6260cffa0e6 176,180-181,189-203,209,213,228-237,249,258,261-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "6bdfccb7f530292da1ce99c8e17ab789b04a7ad7",
+  "prompts": {},
+  "sessions": {
+    "s_3a2c34b696654c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f317b-9a7f-7c10-a677-18f98b4650c2",
+        "model": "unknown"
+      },
+      "human_author": "柏健 <baijian.bj@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
