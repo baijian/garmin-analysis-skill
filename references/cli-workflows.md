@@ -89,10 +89,19 @@ Common queries:
 ```bash
 cycling-health garmin sleep list --days 7 --output json
 cycling-health garmin sleep list --start YYYY-MM-DD --end YYYY-MM-DD --output json
+cycling-health garmin sleep list --start PREVIOUS_DATE --end WAKE_DATE --output json
 cycling-health garmin summary get --date YYYY-MM-DD --output json
 cycling-health garmin health get --days 7 --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+cycling-health garmin health get --start PREVIOUS_DATE --end WAKE_DATE --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
 cycling-health garmin chart render --chart sleep --days 30 --output garmin-sleep.html
 ```
+
+Date handling:
+
+- Interpret "today's early morning sleep" and "last night" as sleep whose wake date is the requested date.
+- For a single wake date, query `sleep list` with the exact date and also `PREVIOUS_DATE` through `WAKE_DATE`; Garmin sleep records can be keyed by either sleep start date or wake date.
+- If the user asks for recent sleep without a specific date, start with `sleep list --days 7`, then add health metrics for the same range.
+- If `data.records[]` is empty for the exact date, do not stop. Run the adjacent-date sleep window and `summary get` for both `WAKE_DATE` and `PREVIOUS_DATE`.
 
 Sleep JSON shape:
 
@@ -109,6 +118,30 @@ Useful sleep fields:
 - `resting_heart_rate`
 - `avg_overnight_hrv`, `hrv_last_night_avg`, `hrv_weekly_avg`, `hrv_status`
 - `body_battery_high`, `body_battery_low`
+
+Fallback sequence for empty sleep records:
+
+1. Re-check a wider sleep window:
+
+   ```bash
+   cycling-health garmin sleep list --start PREVIOUS_DATE --end WAKE_DATE --output json
+   cycling-health garmin sleep list --days 7 --output json
+   ```
+
+2. Check Garmin daily summaries for both possible record dates:
+
+   ```bash
+   cycling-health garmin summary get --date WAKE_DATE --output json
+   cycling-health garmin summary get --date PREVIOUS_DATE --output json
+   ```
+
+3. Check recovery metrics across the same overnight window:
+
+   ```bash
+   cycling-health garmin health get --start PREVIOUS_DATE --end WAKE_DATE --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+   ```
+
+Only say that sleep-stage details are unavailable after these fallbacks return no sleep-duration, sleep-stage, or sleep-score fields. If health metrics such as HRV, respiration, SpO2, stress, or body battery are present, describe them as recovery context rather than a substitute for sleep-stage details.
 
 Analysis checklist:
 
@@ -200,4 +233,5 @@ Cycling analysis checklist:
 - If DNS or proxy errors appear, ask the user whether a proxy/VPN is expected, then retry with the correct network setup.
 - If a CN endpoint returns warnings but the main payload exists, report available data and list warnings.
 - If `profile get` fails for CN, do not use that endpoint as token validation; prefer `garmin status` and real data queries.
+- If `sleep list` returns `records: []` for a single date, treat it as inconclusive until adjacent-date sleep and summary fallback queries are checked.
 - If a command returns JSON with `warnings`, include those warnings in the final answer.

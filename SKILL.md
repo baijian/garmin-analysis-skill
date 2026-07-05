@@ -65,9 +65,13 @@ Do not run a full historical sync without making the scope clear.
 Use when the user asks about sleep quality, sleep score, sleep duration, sleep stages, overnight HRV, resting HR, stress, body battery, recovery, or recent sleep trends.
 
 Default approach:
-1. Query sleep records for the requested range, defaulting to 7 days when unspecified.
-2. Add HRV, resting HR, stress, body battery, respiration, or SpO2 queries when recovery context is needed.
-3. Summarize duration, quality, trend, recovery signals, missing data, and practical next actions.
+1. Resolve relative sleep dates by wake date. For "last night" or "today's early morning sleep", treat the requested day as the wake date and include the previous calendar day in sleep lookups.
+2. Query sleep records for the requested range, defaulting to 7 days when unspecified. For a single wake date, query both the exact date and a previous-day-to-wake-date window before declaring records missing.
+3. If sleep records are empty, run Garmin daily summary queries for the wake date and previous day, then use health metrics only as recovery context.
+4. Add HRV, resting HR, stress, body battery, respiration, or SpO2 queries when recovery context is needed.
+5. Summarize duration, quality, trend, recovery signals, missing data, and practical next actions.
+
+Do not conclude that sleep details are unavailable until the sleep list, adjacent-date sleep window, and daily summary fallback have all been checked.
 
 Avoid medical diagnosis. Present wellness observations only.
 
