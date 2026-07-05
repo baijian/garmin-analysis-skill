@@ -5,7 +5,7 @@ displayName: 佳明数据同步与分析
 version: 0.0.1
 summary: 基于 cycling-health CLI，同步佳明国服活动到佳明国际服，并查询和分析佳明睡眠、骑行数据。
 license: MIT
-description: Garmin activity sync and wellness/cycling analysis workflows using the public cycling-health CLI. Use when an assistant needs to help users install or verify cycling-health, sync Garmin China activities to Garmin Global, check Garmin login/sync status, query Garmin China sleep and recovery data, analyze cycling activities, or inspect local Garmin FIT/GPX files.
+description: Garmin activity sync and wellness/cycling analysis workflows using the public cycling-health CLI. Use when an assistant needs to help users install or verify cycling-health, sync Garmin China activities to Garmin Global, check Garmin login/sync status, query Garmin China sleep and recovery data, analyze cycling activities, inspect local Garmin FIT/GPX files, or assess cycling ability with training metrics such as VO2 max, FTP, endurance score, hill score, weight, and W/kg.
 ---
 
 # Garmin Analysis Skill
@@ -77,10 +77,13 @@ Avoid medical diagnosis. Present wellness observations only.
 
 ### Cycling Query And Analysis
 
-Use when the user asks about recent rides, a specific cycling activity, training load from rides, heart rate, speed, elevation, cadence, power, pacing, or local FIT/GPX files.
+Use when the user asks about recent rides, a specific cycling activity, cycling ability, training load from rides, heart rate, speed, elevation, cadence, power, pacing, VO2 max, FTP, endurance, climbing ability, W/kg, or local FIT/GPX files.
 
 Default approach:
-1. List cycling activities for the requested range.
-2. Fetch activity details for selected rides.
-3. Export and analyze FIT/GPX files when detailed time-series, per-distance samples, or local file inspection is needed.
-4. Summarize volume, intensity, terrain, pacing, technique signals, missing sensors, and anomalies.
+1. List cycling activities for the requested range. For "last N rides", use `--max-activities N` and widen `--days` if the default range does not include enough rides.
+2. Fetch activity details for selected rides, using raw details when ability metrics, zones, training effects, or sensor fields may be hidden in the Garmin payload.
+3. Query training/performance metrics and body metrics when assessing ability, especially VO2 max, FTP, endurance score, hill score, training status/readiness, weight, and W/kg.
+4. Export and analyze FIT/GPX files when detailed time-series, per-distance samples, HR drift, pacing, power stability, or local file inspection is needed.
+5. Summarize volume, intensity, terrain, pacing, technique signals, ability indicators, missing sensors, and anomalies.
+
+Do not conclude that HR zones, VO2 max, FTP, weight, W/kg, or point-level data are unavailable until activity details/raw payloads, training metrics, body metrics, and FIT/GPX export analysis have been checked where relevant.

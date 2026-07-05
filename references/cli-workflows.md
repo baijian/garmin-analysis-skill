@@ -173,8 +173,11 @@ List recent cycling activities:
 
 ```bash
 cycling-health garmin activity list --type cycling --days 30 --output json
+cycling-health garmin activity list --type cycling --days 180 --max-activities 5 --output json
 cycling-health garmin activity list --type cycling --start YYYY-MM-DD --end YYYY-MM-DD --max-activities 50 --output json
 ```
+
+For "last N rides", start with `--max-activities N`. If fewer than N rides are returned, increase `--days` or ask for a wider date range before analyzing ability from an incomplete sample.
 
 Fetch one activity:
 
@@ -183,14 +186,31 @@ cycling-health garmin activity get --activity-id ACTIVITY_ID --output json
 cycling-health garmin activity get --activity-id ACTIVITY_ID --raw --output json
 ```
 
+Training and body context for cycling ability:
+
+```bash
+cycling-health garmin training get --metric max_metrics --date YYYY-MM-DD --output json
+cycling-health garmin training get --metric status --date YYYY-MM-DD --output json
+cycling-health garmin training get --metric readiness --date YYYY-MM-DD --output json
+cycling-health garmin training get --metric endurance_score --date YYYY-MM-DD --output json
+cycling-health garmin training get --metric hill_score --date YYYY-MM-DD --output json
+cycling-health garmin body get --metric weigh_ins --days 30 --output json
+cycling-health garmin body get --metric composition --days 30 --output json
+cycling-health garmin profile get --raw --output json
+```
+
+Use `training get --metric max_metrics` before saying VO2 max or FTP is unavailable. Use `body get --metric weigh_ins` and `body get --metric composition` before saying weight is unavailable. Use the latest reliable body weight for W/kg only when both weight and power or FTP are present; report the weight date if it is stale.
+
 Export and analyze local files:
 
 ```bash
 mkdir -p garmin-analysis
 cycling-health garmin activity export --activity-id ACTIVITY_ID --format fit --output garmin-analysis
+cycling-health garmin fit download --activity-id ACTIVITY_ID --path garmin-analysis/ACTIVITY.fit
 cycling-health garmin activity analyze --file garmin-analysis/ACTIVITY.fit --output json
 cycling-health garmin fit parse --file garmin-analysis/ACTIVITY.fit --targets 1,5,10,last --output json
 cycling-health garmin activity query --file garmin-analysis/ACTIVITY.fit --distance 10000 --output json
+cycling-health garmin activity dump --file garmin-analysis/ACTIVITY.fit --max-records 0 --output json
 ```
 
 Activity list fields vary by Garmin payload. Common useful fields include:
@@ -205,6 +225,16 @@ Activity list fields vary by Garmin payload. Common useful fields include:
 - `elevationGain`
 - `averageBikeCadence`, `maxBikeCadence`
 - `avgPower`, `maxPower`, `normalizedPower`
+- `trainingEffect`, `aerobicTrainingEffect`, `anaerobicTrainingEffect`
+- `hrTimeInZone`, `powerTimeInZone`, `timeInZones`
+
+Training and body fields vary by Garmin payload. Search returned JSON for these concepts before reporting them missing:
+
+- VO2 max: `vo2Max`, `generic.value`, `cyclingVo2Max`, or VO2-related keys in `max_metrics`
+- FTP: `ftp`, `functionalThresholdPower`, `cyclingFTP`, or power threshold keys in `max_metrics`
+- Endurance and climbing: `endurance_score`, `hill_score`, `score`, `classification`, or trend fields
+- Weight: `weight`, `weightKg`, `bodyWeight`, or latest weigh-in/composition entry
+- Zones: HR/power zone arrays, time-in-zone summaries, or zone settings in raw activity/profile payloads
 
 Local file analysis fields:
 
@@ -216,6 +246,7 @@ Local file analysis fields:
 - `cadence`
 - `power`
 - `kmSamples` from `garmin fit parse`
+- raw records from `activity dump` when drift, stability, or point-level pacing needs calculation
 
 Cycling analysis checklist:
 
@@ -224,7 +255,16 @@ Cycling analysis checklist:
 - Terrain: elevation gain and climbing impact.
 - Technique: cadence consistency if present.
 - Pacing: first half vs second half, per-distance sample changes.
+- Ability: VO2 max, FTP, W/kg, endurance score, hill score, training status/readiness, and ride-derived power/HR signals when present.
 - Data quality: missing HR, cadence, power, GPS, or sparse records.
+
+Fallback sequence for cycling ability gaps:
+
+1. For missing VO2 max or FTP, run `training get --metric max_metrics` for the analysis date. If absent, inspect selected activity raw details for VO2, FTP, threshold, or performance-condition fields.
+2. For missing weight or W/kg, run body `weigh_ins` and `composition`; optionally inspect `profile get --raw`. Do not calculate W/kg without both weight and a relevant power value.
+3. For missing HR zones or power zones, inspect `activity get --raw`, `profile get --raw`, and FIT analysis output for time-in-zone or zone arrays. If still absent, analyze HR/power using observed averages, maxima, and distributions instead of inventing zone boundaries.
+4. For missing per-km or point-level data, export or download FIT, then run `activity analyze`, `fit parse`, and, when needed, `activity dump --max-records 0` on selected activities.
+5. Only after these checks should the answer list a data gap as unavailable. Phrase it as "not returned by the checked CLI calls" and include the commands checked.
 
 ## Failure Handling
 
