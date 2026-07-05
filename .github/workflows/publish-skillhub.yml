@@ -1,0 +1,47 @@
+name: Publish SkillHub Skill
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          SKILL_VERSION="$(awk -F': ' '/^version:/ {print $2; exit}' SKILL.md)"
+          test "$TAG_VERSION" = "$SKILL_VERSION" || {
+            echo "Tag version ${TAG_VERSION} does not match SKILL.md version ${SKILL_VERSION}"
+            exit 1
+          }
+
+      - name: Install SkillHub CLI
+        run: |
+          curl -fsSL https://skillhub.cn/install/install.sh | bash -s -- --cli-only
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check CLI
+        run: skillhub --version
+
+      - name: Login SkillHub
+        env:
+          SKILLHUB_API_KEY: ${{ secrets.SKILLHUB_API_KEY }}
+        run: |
+          test -n "$SKILLHUB_API_KEY"
+          skillhub login \
+            --key "$SKILLHUB_API_KEY" \
+            --host https://api.skillhub.cn
+          skillhub auth whoami
+
+      - name: Dry run
+        run: skillhub publish . --dry-run
+
+      - name: Publish
+        run: skillhub publish . --changelog "Release ${GITHUB_REF_NAME}"
