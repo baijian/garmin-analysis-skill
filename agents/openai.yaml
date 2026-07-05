@@ -1,0 +1,4 @@
+interface:
+  display_name: "Garmin Analysis"
+  short_description: "Analyze Garmin data with cycling-health"
+  default_prompt: "Use $garmin-analysis-skill to help me install cycling-health, sync Garmin activities, or analyze Garmin sleep and cycling data."
