@@ -2,7 +2,7 @@
 name: garmin-analysis-skill
 slug: garmin-analysis-skill
 displayName: 佳明数据同步与分析
-version: 0.0.2
+version: 0.0.3
 summary: 基于 cycling-health CLI，按登录状态选区查询分析佳明睡眠与骑行数据（未登录提醒登录、单区登录用该区、双区登录且未指定时默认 CN），并将国服活动同步到国际服（需 CN 与 Global 均登录）。
 license: MIT
 description: Garmin activity sync and wellness/cycling analysis workflows using the public cycling-health CLI. Data queries (sleep, recovery, cycling) select the region by login state—prompt login when none is logged in, use the logged-in region when only one is available, and default to cn when both are logged in and the user did not specify a region; CN-to-Global sync requires both cn and global to be logged in. Use when an assistant needs to help users install or verify cycling-health, sync Garmin China activities to Garmin Global, check Garmin login/sync status, query sleep/recovery/cycling data, analyze cycling activities, inspect local Garmin FIT/GPX files, or assess cycling ability with training metrics such as VO2 max, FTP, endurance score, hill score, weight, and W/kg.
