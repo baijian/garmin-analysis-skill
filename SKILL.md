@@ -3,9 +3,9 @@ name: garmin-analysis-skill
 slug: garmin-analysis-skill
 displayName: 佳明数据同步与分析
 version: 0.0.2
-summary: 基于 cycling-health CLI，同步佳明国服活动到佳明国际服，并查询和分析佳明睡眠、骑行数据。
+summary: 基于 cycling-health CLI，按登录状态选区查询分析佳明睡眠与骑行数据（未登录提醒登录、单区登录用该区、双区登录且未指定时默认 CN），并将国服活动同步到国际服（需 CN 与 Global 均登录）。
 license: MIT
-description: Garmin activity sync and wellness/cycling analysis workflows using the public cycling-health CLI. Use when an assistant needs to help users install or verify cycling-health, sync Garmin China activities to Garmin Global, check Garmin login/sync status, query Garmin China sleep and recovery data, analyze cycling activities, inspect local Garmin FIT/GPX files, or assess cycling ability with training metrics such as VO2 max, FTP, endurance score, hill score, weight, and W/kg.
+description: Garmin activity sync and wellness/cycling analysis workflows using the public cycling-health CLI. Data queries (sleep, recovery, cycling) select the region by login state—prompt login when none is logged in, use the logged-in region when only one is available, and default to cn when both are logged in and the user did not specify a region; CN-to-Global sync requires both cn and global to be logged in. Use when an assistant needs to help users install or verify cycling-health, sync Garmin China activities to Garmin Global, check Garmin login/sync status, query sleep/recovery/cycling data, analyze cycling activities, inspect local Garmin FIT/GPX files, or assess cycling ability with training metrics such as VO2 max, FTP, endurance score, hill score, weight, and W/kg.
 ---
 
 # Garmin Analysis Skill
@@ -21,6 +21,7 @@ Use `cycling-health` as the command-line interface for Garmin data. The CLI is p
 - Let users type passwords and MFA codes into their terminal or trusted local prompt. Do not ask them to paste secrets into chat.
 - Analyze only fields that exist in the CLI output. Do not invent HRV, sleep score, cadence, power, zones, or training conclusions.
 - Preserve CLI warnings and data gaps in the answer.
+- Region selection for data queries follows login state: if neither `cn` nor `global` is logged in, prompt the user to log in; if only one is logged in, use that region; if both are logged in and the user did not specify a region, default to `cn`. When the user explicitly names a region, use it (it must be logged in). Pass the selected region with `--region <cn|global>`; omitting the flag defaults to `cn`. CN-to-Global sync requires both `cn` and `global` to be logged in.
 
 Read `references/cli-workflows.md` when you need exact install guidance, commands, JSON fields, or failure handling.
 
@@ -30,10 +31,14 @@ Read `references/cli-workflows.md` when you need exact install guidance, command
    - Run `cycling-health version` when command execution is available.
    - If unavailable, direct the user to install from `https://github.com/baijian/cycling-health`.
 
-2. Check Garmin login state:
-   - Run `cycling-health garmin status --output json`.
-   - CN data queries require the `cn` region to be logged in.
-   - CN-to-Global sync requires both `cn` and `global` regions to be logged in.
+2. Check Garmin login state and select the query region:
+   - Run `cycling-health garmin status --output json` to see which of `cn` and `global` are logged in.
+   - If neither is logged in, prompt the user to run `garmin login --region <cn|global>` before querying data.
+   - If only one region is logged in, use that region for data queries.
+   - If both are logged in and the user did not specify a region, default to `cn`.
+   - If the user explicitly specified a region, use it (it must be logged in).
+   - Pass the selected region to data commands via `--region <cn|global>`; omitting it defaults to `cn`.
+   - For CN-to-Global sync, both `cn` and `global` must be logged in.
 
 3. Select the task workflow:
    - Sync activities: inspect sync status, then run incremental sync by default.
@@ -53,7 +58,7 @@ Read `references/cli-workflows.md` when you need exact install guidance, command
 Use when the user asks to sync, migrate, mirror, upload, backfill, or keep Garmin China activities aligned with Garmin Global.
 
 Default approach:
-1. Check login status for both regions.
+1. Confirm both `cn` and `global` are logged in; sync cannot run otherwise.
 2. Inspect sync state.
 3. Run incremental sync unless the user explicitly requests a full historical sync.
 4. Report retried, synced, failed, and last activity time.
@@ -63,6 +68,8 @@ Do not run a full historical sync without making the scope clear.
 ### Sleep Query And Analysis
 
 Use when the user asks about sleep quality, sleep score, sleep duration, sleep stages, overnight HRV, resting HR, stress, body battery, recovery, or recent sleep trends.
+
+Data source: select the region by login state per Principles (no login → prompt login; one login → that region; both logins and unspecified → `cn`). Pass it with `--region <cn|global>`.
 
 Default approach:
 1. Resolve relative sleep dates by wake date. For "last night" or "today's early morning sleep", treat the requested day as the wake date and include the previous calendar day in sleep lookups.
@@ -78,6 +85,8 @@ Avoid medical diagnosis. Present wellness observations only.
 ### Cycling Query And Analysis
 
 Use when the user asks about recent rides, a specific cycling activity, cycling ability, training load from rides, heart rate, speed, elevation, cadence, power, pacing, VO2 max, FTP, endurance, climbing ability, W/kg, or local FIT/GPX files.
+
+Data source: select the region by login state per Principles (no login → prompt login; one login → that region; both logins and unspecified → `cn`). Pass it with `--region <cn|global>` on commands that accept it (for example `activity list --region cn`).
 
 Default approach:
 1. List cycling activities for the requested range. For "last N rides", use `--max-activities N` and widen `--days` if the default range does not include enough rides.

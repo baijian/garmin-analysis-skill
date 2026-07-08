@@ -46,8 +46,8 @@ cycling-health garmin login --region global --email user@example.com
 
 Notes:
 
-- Garmin China data queries use region `cn`.
-- Garmin Global login is required for China-to-Global activity sync.
+- Data query commands (sleep, summary, health, activity, body, chart, profile, training, run, fit download) accept `--region cn|global`; omitting it defaults to `cn`. Select the region by login state: prompt login when neither is logged in, use the logged-in region when only one is available, and default to `cn` when both are logged in and the user did not specify a region.
+- CN-to-Global activity sync requires both `cn` and `global` to be logged in.
 - Password and MFA prompts are interactive. The user should enter them locally.
 - Token files are local secrets; do not display or copy their contents.
 
@@ -84,16 +84,18 @@ Report these fields when present:
 
 ## Sleep Data
 
+Query region: select by login state (no login → prompt login; one login → that region; both logins and unspecified → `cn`). Pass it with `--region <cn|global>`.
+
 Common queries:
 
 ```bash
-cycling-health garmin sleep list --days 7 --output json
-cycling-health garmin sleep list --start YYYY-MM-DD --end YYYY-MM-DD --output json
-cycling-health garmin sleep list --start PREVIOUS_DATE --end WAKE_DATE --output json
-cycling-health garmin summary get --date YYYY-MM-DD --output json
-cycling-health garmin health get --days 7 --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
-cycling-health garmin health get --start PREVIOUS_DATE --end WAKE_DATE --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
-cycling-health garmin chart render --chart sleep --days 30 --output garmin-sleep.html
+cycling-health garmin sleep list --region cn --days 7 --output json
+cycling-health garmin sleep list --region cn --start YYYY-MM-DD --end YYYY-MM-DD --output json
+cycling-health garmin sleep list --region cn --start PREVIOUS_DATE --end WAKE_DATE --output json
+cycling-health garmin summary get --region cn --date YYYY-MM-DD --output json
+cycling-health garmin health get --region cn --days 7 --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+cycling-health garmin health get --region cn --start PREVIOUS_DATE --end WAKE_DATE --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+cycling-health garmin chart render --region cn --chart sleep --days 30 --output garmin-sleep.html
 ```
 
 Date handling:
@@ -169,12 +171,14 @@ Use recovery metrics to explain sleep and cycling readiness only when data is pr
 
 ## Cycling Data
 
+Query region: select by login state (no login → prompt login; one login → that region; both logins and unspecified → `cn`). `activity list`, `activity get`, `activity export`, `training get`, `body get`, `profile get`, and `fit download` all accept `--region <cn|global>`.
+
 List recent cycling activities:
 
 ```bash
-cycling-health garmin activity list --type cycling --days 30 --output json
-cycling-health garmin activity list --type cycling --days 180 --max-activities 5 --output json
-cycling-health garmin activity list --type cycling --start YYYY-MM-DD --end YYYY-MM-DD --max-activities 50 --output json
+cycling-health garmin activity list --region cn --type cycling --days 30 --output json
+cycling-health garmin activity list --region cn --type cycling --days 180 --max-activities 5 --output json
+cycling-health garmin activity list --region cn --type cycling --start YYYY-MM-DD --end YYYY-MM-DD --max-activities 50 --output json
 ```
 
 For "last N rides", start with `--max-activities N`. If fewer than N rides are returned, increase `--days` or ask for a wider date range before analyzing ability from an incomplete sample.
@@ -182,21 +186,21 @@ For "last N rides", start with `--max-activities N`. If fewer than N rides are r
 Fetch one activity:
 
 ```bash
-cycling-health garmin activity get --activity-id ACTIVITY_ID --output json
-cycling-health garmin activity get --activity-id ACTIVITY_ID --raw --output json
+cycling-health garmin activity get --region cn --activity-id ACTIVITY_ID --output json
+cycling-health garmin activity get --region cn --activity-id ACTIVITY_ID --raw --output json
 ```
 
 Training and body context for cycling ability:
 
 ```bash
-cycling-health garmin training get --metric max_metrics --date YYYY-MM-DD --output json
-cycling-health garmin training get --metric status --date YYYY-MM-DD --output json
-cycling-health garmin training get --metric readiness --date YYYY-MM-DD --output json
-cycling-health garmin training get --metric endurance_score --date YYYY-MM-DD --output json
-cycling-health garmin training get --metric hill_score --date YYYY-MM-DD --output json
-cycling-health garmin body get --metric weigh_ins --days 30 --output json
-cycling-health garmin body get --metric composition --days 30 --output json
-cycling-health garmin profile get --raw --output json
+cycling-health garmin training get --region cn --metric max_metrics --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric status --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric readiness --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric endurance_score --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric hill_score --date YYYY-MM-DD --output json
+cycling-health garmin body get --region cn --metric weigh_ins --days 30 --output json
+cycling-health garmin body get --region cn --metric composition --days 30 --output json
+cycling-health garmin profile get --region cn --raw --output json
 ```
 
 Use `training get --metric max_metrics` before saying VO2 max or FTP is unavailable. Use `body get --metric weigh_ins` and `body get --metric composition` before saying weight is unavailable. Use the latest reliable body weight for W/kg only when both weight and power or FTP are present; report the weight date if it is stale.
@@ -269,7 +273,7 @@ Fallback sequence for cycling ability gaps:
 ## Failure Handling
 
 - If `cycling-health` is unavailable, guide installation from `https://github.com/baijian/cycling-health`.
-- If status says not logged in, run the appropriate `garmin login` command.
+- If status says not logged in, run the appropriate `garmin login` command. For data queries, pick the region by login state: if neither is logged in, prompt login; if only one is logged in, query that region; if both are logged in and the user did not specify, default to `cn`.
 - If DNS or proxy errors appear, ask the user whether a proxy/VPN is expected, then retry with the correct network setup.
 - If a CN endpoint returns warnings but the main payload exists, report available data and list warnings.
 - If `profile get` fails for CN, do not use that endpoint as token validation; prefer `garmin status` and real data queries.
