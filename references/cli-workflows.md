@@ -2,6 +2,18 @@
 
 Use this reference for public `cycling-health` installation guidance, Garmin commands, and analysis conventions.
 
+## Contents
+
+- [Install Or Locate The CLI](#install-or-locate-the-cli)
+- [Upgrade Before Use](#upgrade-before-use)
+- [Feedback Channel](#feedback-channel)
+- [Auth And Status](#auth-and-status)
+- [China To Global Activity Sync](#china-to-global-activity-sync)
+- [Sleep Data](#sleep-data)
+- [Health And Recovery Context](#health-and-recovery-context)
+- [Cycling Data](#cycling-data)
+- [Failure Handling](#failure-handling)
+
 ## Install Or Locate The CLI
 
 Public repository:
@@ -15,6 +27,7 @@ Prefer an existing installation:
 ```bash
 command -v cycling-health
 cycling-health version
+cycling-health upgrade --output json
 cycling-health doctor --output json
 ```
 
@@ -26,6 +39,22 @@ If `cycling-health` is missing:
 4. Verify with `cycling-health version`.
 
 Do not assume a source checkout or machine-specific binary path.
+
+## Upgrade Before Use
+
+When command execution is available and `cycling-health` exists, run the public self-upgrade before Garmin status, sync, or analysis commands:
+
+```bash
+cycling-health upgrade --output json
+```
+
+The command checks GitHub's latest public release and downloads the matching GitHub release asset. It does not accept alternate release or download URLs.
+
+Treat `status: "upgraded"` and `status: "up-to-date"` as successful upgrade states. If the upgrade fails because the network is unavailable, the executable cannot be replaced, checksum verification fails, or no compatible release asset exists, preserve the error in the final answer and ask before continuing with the currently installed binary unless the user already instructed you to proceed.
+
+## Feedback Channel
+
+For bug reports, installation issues, Garmin data gaps, or analysis questions, point users to the Discord invitation URL configured in `SKILL.md`.
 
 ## Auth And Status
 
@@ -95,8 +124,18 @@ cycling-health garmin sleep list --region cn --start PREVIOUS_DATE --end WAKE_DA
 cycling-health garmin summary get --region cn --date YYYY-MM-DD --output json
 cycling-health garmin health get --region cn --days 7 --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
 cycling-health garmin health get --region cn --start PREVIOUS_DATE --end WAKE_DATE --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+cycling-health garmin health get --region cn --start WAKE_DATE --end WAKE_DATE --metrics bb_events --output json
 cycling-health garmin chart render --region cn --chart sleep --days 30 --output garmin-sleep.html
 ```
+
+Choose the smallest useful query set:
+
+- Single night: adjacent-date `sleep list` plus wake-date `summary get`.
+- Recent baseline: `sleep list --days 7` plus health metrics for the same range.
+- Longer trend: 14-30 days of sleep and selected recovery metrics; render a chart only when a visual is useful.
+- Body-battery event explanation: query `bb_events` only for the relevant day because it returns event-level activity and stress context.
+
+`summary get` is the efficient wake-date snapshot. When available, it includes sleep, resting/max HR, body battery, stress, VO2 max, training status/load, training readiness, weekly intensity minutes, and last-sync time. Do not make separate training calls for the same date unless the summary omits a required field or the user asks for raw metric detail.
 
 Date handling:
 
@@ -114,10 +153,12 @@ Sleep JSON shape:
 Useful sleep fields:
 
 - `date`
+- `start_time_local`, `end_time_local`
 - `total_seconds`, `total_formatted`
 - `deep_seconds`, `light_seconds`, `rem_seconds`, `awake_seconds`
 - `sleep_score`
-- `resting_heart_rate`
+- `avg_heart_rate`, `resting_heart_rate`
+- `avg_respiration`, `restless_periods`
 - `avg_overnight_hrv`, `hrv_last_night_avg`, `hrv_weekly_avg`, `hrv_status`
 - `body_battery_high`, `body_battery_low`
 
@@ -147,12 +188,14 @@ Only say that sleep-stage details are unavailable after these fallbacks return n
 
 Analysis checklist:
 
-- Duration vs range average.
+- Duration and sleep timing vs the user's available range average.
 - Sleep score and trend.
 - Deep, REM, light, and awake time when present.
+- Sleeping HR, respiration, and restless periods when present.
 - HRV status and last-night HRV vs weekly average.
 - Resting HR and stress context.
-- Body battery recharge/depletion.
+- Body battery recharge/depletion; event-level impact only when `bb_events` was queried.
+- Training readiness/status as current-day context, not as a sleep metric.
 - Missing days and warnings.
 
 ## Health And Recovery Context
@@ -162,12 +205,13 @@ Common queries:
 ```bash
 cycling-health garmin health get --days 7 --metrics hrv,rhr,stress,bb --output json
 cycling-health garmin health get --start YYYY-MM-DD --end YYYY-MM-DD --metrics hrv,rhr,stress,bb,respiration,spo2 --output json
+cycling-health garmin health get --start YYYY-MM-DD --end YYYY-MM-DD --metrics bb_events --output json
 cycling-health garmin health query --metric heart_rate --date YYYY-MM-DD --time HH:MM --output json
 cycling-health garmin health query --metric stress --date YYYY-MM-DD --time HH:MM --output json
 cycling-health garmin health query --metric body_battery --date YYYY-MM-DD --time HH:MM --output json
 ```
 
-Use recovery metrics to explain sleep and cycling readiness only when data is present.
+Use recovery metrics to explain sleep and cycling readiness only when data is present. `health get` also supports `steps`, `floors`, `intensity`, `hydration`, and `hr`; request them only when relevant to the question. Use `health query` for a specific intraday timestamp, not for broad trend analysis.
 
 ## Cycling Data
 
@@ -177,7 +221,7 @@ List recent cycling activities:
 
 ```bash
 cycling-health garmin activity list --region cn --type cycling --days 30 --output json
-cycling-health garmin activity list --region cn --type cycling --days 180 --max-activities 5 --output json
+cycling-health garmin activity list --region cn --type cycling --days 90 --max-activities 50 --output json
 cycling-health garmin activity list --region cn --type cycling --start YYYY-MM-DD --end YYYY-MM-DD --max-activities 50 --output json
 ```
 
@@ -188,22 +232,40 @@ Fetch one activity:
 ```bash
 cycling-health garmin activity get --region cn --activity-id ACTIVITY_ID --output json
 cycling-health garmin activity get --region cn --activity-id ACTIVITY_ID --raw --output json
+cycling-health garmin activity extended --region cn --activity-id ACTIVITY_ID --output json
 ```
+
+`activity get` already attempts summary, laps, HR zones, power zones, weather, gear, and detailed samples. Use `activity extended` only when typed splits or split summaries are needed and the normal detail result is insufficient. Use `--raw` only when a required field is absent from the simplified output.
+
+Progress queries:
+
+```bash
+cycling-health garmin activity progress --region cn --days 90 --metric distance --output json
+cycling-health garmin activity progress --region cn --days 90 --metric duration --output json
+cycling-health garmin activity progress --region cn --days 90 --metric moving_duration --output json
+cycling-health garmin activity progress --region cn --days 90 --metric elevation_gain --output json
+```
+
+Run only the axes needed for the user's progression question. Results are grouped by parent activity type by default, so use the cycling group for cycling analysis. Activity history can usually provide a quick volume summary without all four calls.
 
 Training and body context for cycling ability:
 
 ```bash
 cycling-health garmin training get --region cn --metric max_metrics --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric cycling_ftp --output json
 cycling-health garmin training get --region cn --metric status --date YYYY-MM-DD --output json
 cycling-health garmin training get --region cn --metric readiness --date YYYY-MM-DD --output json
 cycling-health garmin training get --region cn --metric endurance_score --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric endurance_score --start YYYY-MM-DD --end YYYY-MM-DD --output json
 cycling-health garmin training get --region cn --metric hill_score --date YYYY-MM-DD --output json
+cycling-health garmin training get --region cn --metric hill_score --start YYYY-MM-DD --end YYYY-MM-DD --output json
 cycling-health garmin body get --region cn --metric weigh_ins --days 30 --output json
 cycling-health garmin body get --region cn --metric composition --days 30 --output json
 cycling-health garmin profile get --region cn --raw --output json
+cycling-health garmin achievement records --region cn --output json
 ```
 
-Use `training get --metric max_metrics` before saying VO2 max or FTP is unavailable. Use `body get --metric weigh_ins` and `body get --metric composition` before saying weight is unavailable. Use the latest reliable body weight for W/kg only when both weight and power or FTP are present; report the weight date if it is stale.
+Use direct `cycling_ftp` first for FTP and `max_metrics` for VO2 max or additional maximum metrics. Use `status` for training status and acute/chronic load; use `readiness` only for today's training decision. Use date ranges for endurance/hill score only when progression matters. Use personal records only for peak-performance questions. Use `weigh_ins` and `composition` before saying weight is unavailable. Calculate W/kg only from a relevant power/FTP value and the latest reliable body weight; report both source dates when they differ or the weight is stale.
 
 Export and analyze local files:
 
@@ -235,8 +297,9 @@ Activity list fields vary by Garmin payload. Common useful fields include:
 Training and body fields vary by Garmin payload. Search returned JSON for these concepts before reporting them missing:
 
 - VO2 max: `vo2Max`, `generic.value`, `cyclingVo2Max`, or VO2-related keys in `max_metrics`
-- FTP: `ftp`, `functionalThresholdPower`, `cyclingFTP`, or power threshold keys in `max_metrics`
+- FTP: direct `cycling_ftp` response, then `ftp`, `functionalThresholdPower`, `cyclingFTP`, or power threshold keys in `max_metrics`
 - Endurance and climbing: `endurance_score`, `hill_score`, `score`, `classification`, or trend fields
+- Training load: `acute_load`, `chronic_load`, `target_min`, `target_max`, `ratio`, `acwr_percent`, or `acwr_status`
 - Weight: `weight`, `weightKg`, `bodyWeight`, or latest weigh-in/composition entry
 - Zones: HR/power zone arrays, time-in-zone summaries, or zone settings in raw activity/profile payloads
 
@@ -254,21 +317,25 @@ Local file analysis fields:
 
 Cycling analysis checklist:
 
-- Volume: ride count, total distance, total duration, weekly trend.
-- Intensity: average/max HR, power if present, speed distribution.
+- Consistency and volume: ride count, frequency, total distance/duration, and weekly trend.
+- Aerobic durability: long-ride duration, HR/power stability, training effect, and endurance score when present.
+- Threshold: cycling FTP, W/kg, VO2 max, power zones, and sustained power evidence when present.
+- Climbing: hill score, elevation gain, climbing-specific power/HR, and terrain context.
+- Intensity: average/max HR, power, training load, and time in zones when present.
 - Terrain: elevation gain and climbing impact.
 - Technique: cadence consistency if present.
 - Pacing: first half vs second half, per-distance sample changes.
-- Ability: VO2 max, FTP, W/kg, endurance score, hill score, training status/readiness, and ride-derived power/HR signals when present.
+- Readiness: current sleep/recovery and training readiness, reported separately from durable ability.
 - Data quality: missing HR, cadence, power, GPS, or sparse records.
+- Confidence: high when multiple independent metrics agree; lower when based on one ride, speed alone, stale weight, or missing sensors.
 
 Fallback sequence for cycling ability gaps:
 
-1. For missing VO2 max or FTP, run `training get --metric max_metrics` for the analysis date. If absent, inspect selected activity raw details for VO2, FTP, threshold, or performance-condition fields.
+1. For missing FTP, run direct `training get --metric cycling_ftp`, then `max_metrics`, then inspect selected activity details/raw payloads. For missing VO2 max, run `max_metrics`, then inspect activity details/raw payloads.
 2. For missing weight or W/kg, run body `weigh_ins` and `composition`; optionally inspect `profile get --raw`. Do not calculate W/kg without both weight and a relevant power value.
-3. For missing HR zones or power zones, inspect `activity get --raw`, `profile get --raw`, and FIT analysis output for time-in-zone or zone arrays. If still absent, analyze HR/power using observed averages, maxima, and distributions instead of inventing zone boundaries.
-4. For missing per-km or point-level data, export or download FIT, then run `activity analyze`, `fit parse`, and, when needed, `activity dump --max-records 0` on selected activities.
-5. Only after these checks should the answer list a data gap as unavailable. Phrase it as "not returned by the checked CLI calls" and include the commands checked.
+3. For missing splits, run `activity extended`; for missing HR/power zones, inspect `activity get --raw`, `profile get --raw`, and FIT analysis output. If still absent, use observed averages, maxima, and distributions instead of inventing zone boundaries.
+4. For missing per-distance or point-level data, export or download FIT, then run `activity analyze`, `fit parse`, and, only when needed, `activity dump --max-records 0` on selected activities.
+5. Only after the relevant checks should the answer list a data gap as unavailable. Phrase it as "not returned by the checked CLI calls" and include the commands checked.
 
 ## Failure Handling
 
