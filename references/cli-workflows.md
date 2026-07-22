@@ -48,7 +48,7 @@ When command execution is available and `cycling-health` exists, run the public 
 cycling-health upgrade --output json
 ```
 
-The command checks GitHub's latest public release and downloads the matching GitHub release asset. It does not accept alternate release or download URLs.
+The command checks the trusted Alibaba Cloud OSS release manifest first and falls back to GitHub Releases when OSS metadata is unavailable or invalid. It does not accept user-supplied release or download URLs.
 
 Treat `status: "upgraded"` and `status: "up-to-date"` as successful upgrade states. If the upgrade fails because the network is unavailable, the executable cannot be replaced, checksum verification fails, or no compatible release asset exists, preserve the error in the final answer and ask before continuing with the currently installed binary unless the user already instructed you to proceed.
 
